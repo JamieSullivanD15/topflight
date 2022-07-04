@@ -6,8 +6,8 @@ This repository contains a Spring-boot microservice setup.
 *  You need to create a `credentials.properties` file in the resources/ fodler  with the credentials to access the database:
 
 ```
-db.username=root
-db.password=gevrek
+db.username=...
+db.password=...
 ```
 
 * The repo defines a single service `/hotel/<id>`  that returns the name of the requested hotel. 
