@@ -10,8 +10,6 @@
     <name>Topflight Assessment</name>
 
     <properties>
-        <maven.compiler.source>14</maven.compiler.source>
-        <maven.compiler.target>14</maven.compiler.target>
         <org.springframework.version>5.3.21</org.springframework.version>
         <mybatis.version>3.5.10</mybatis.version>
     </properties>
