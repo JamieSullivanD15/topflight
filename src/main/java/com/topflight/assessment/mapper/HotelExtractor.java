@@ -1,6 +1,7 @@
 package com.topflight.assessment.mapper;
 
 import com.topflight.assessment.model.Hotel;
+import com.topflight.assessment.model.RoomType;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 
@@ -24,18 +25,30 @@ public class HotelExtractor implements ResultSetExtractor<List<Hotel>> {
                 hotel.setStars(rs.getInt("STARS"));
                 hotel.setCity(rs.getString("CITY"));
                 hotel.setAddress(rs.getString("ADDRESS"));
-                List<String> photos = new ArrayList<>();
-                photos.add(rs.getString("URL"));
-                hotel.setPhotos(photos);
+                hotel.setRoomTypes(addRoomTypes(rs, null));
                 hotelMap.put(id, hotel);
             } else {
-                List<String> photos = hotel.getPhotos();
-                photos.add(rs.getString("URL"));
-                hotel.setPhotos(photos);
+                hotel.setRoomTypes(addRoomTypes(rs, hotel));
             }
 
         }
 
         return new ArrayList<>(hotelMap.values());
+    }
+
+    private List<RoomType> addRoomTypes(ResultSet rs, Hotel hotel) throws SQLException, DataAccessException {
+        List<RoomType> roomTypes = new ArrayList<>();
+        RoomType roomType = new RoomType();
+
+        if (hotel != null) {
+            roomTypes = hotel.getRoomTypes();
+        }
+
+        roomType.setTypeName(rs.getString("TYPENAME"));
+        roomType.setPricePerPerson(rs.getInt("PRICEPERPERSON"));
+        roomType.setMaxPeople(rs.getInt("MAXPEOPLE"));
+        roomType.setNumRoomsAvailable(rs.getInt("NUMROOMSAVAILABLE"));
+        roomTypes.add(roomType);
+        return roomTypes;
     }
 }

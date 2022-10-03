@@ -1,10 +1,8 @@
 package com.topflight.assessment.services;
 
-import com.topflight.assessment.mapper.CitiesMapper;
-import com.topflight.assessment.mapper.HotelExtractor;
-import com.topflight.assessment.mapper.RoomTypesMapper;
+import com.topflight.assessment.mapper.*;
 import com.topflight.assessment.model.Hotel;
-import com.topflight.assessment.model.RoomType;
+import com.topflight.assessment.model.PaginatedHotels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,48 +13,68 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import java.util.Iterator;
 import java.util.List;
 
 @RestController
 @EnableWebMvc
 @RequestMapping(path = "/hotels")
+@CrossOrigin(origins = "http://localhost:3000")
 public class HotelService {
     @Autowired
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private Logger logger = LoggerFactory.getLogger(HotelService.class);
 
-    @GetMapping(path = "/{city}/{minPrice}/{maxPrice}/{numPeople}")
-    public ResponseEntity<List<Hotel>> getHotels(
-            @PathVariable("city") String city,
-            @PathVariable("minPrice") int minPrice,
-            @PathVariable("maxPrice") int maxPrice,
-            @PathVariable("numPeople") int numPeople
+    @GetMapping(path = "")
+    public ResponseEntity<PaginatedHotels> getHotels(
+            @RequestParam(value = "city") String city,
+            @RequestParam(value = "minPrice") int minPrice,
+            @RequestParam(value = "maxPrice") int maxPrice,
+            @RequestParam(value = "numPeople") int numPeople,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "pageSize", required = false, defaultValue = "3") int pageSize
     ) {
-        SqlParameterSource namedParameters = new MapSqlParameterSource().addValue("city", city);
+        SqlParameterSource params = new MapSqlParameterSource()
+                .addValue("city", city)
+                .addValue("minPrice", minPrice)
+                .addValue("maxPrice", maxPrice)
+                .addValue("numPeople", numPeople);
+
         List<Hotel> hotels = namedParameterJdbcTemplate.query(
-                "SELECT h.*, p.url FROM hotels h "
-                        + "LEFT OUTER JOIN photos p ON p.hotelId = h.id "
-                        + "WHERE h.city = :city ORDER BY h.name ASC",
-                namedParameters,
+                "SELECT h.*, r.typeName, r.pricePerPerson, r.maxPeople, r.numRoomsAvailable "
+                        + "FROM hotels h LEFT OUTER JOIN roomTypes r ON r.hotelId = h.id "
+                        + "WHERE h.city = :city "
+                        + "AND r.pricePerPerson BETWEEN :minPrice AND :maxPrice AND r.maxPeople <= :numPeople "
+                        + "ORDER BY h.name",
+                params,
                 new HotelExtractor()
         );
 
-        if (hotels != null) {
-            Iterator<Hotel> i = hotels.iterator();
-            while (i.hasNext()) {
-                Hotel hotel = i.next();
-                List<RoomType> rooms = getRoomTypes(hotel.getId(), minPrice, maxPrice, numPeople);
-                if (rooms.size() == 0) {
-                    i.remove();
-                } else {
-                    hotel.setRoomTypes(rooms);
-                }
+        List<String> totalResults = namedParameterJdbcTemplate.query(
+                "SELECT DISTINCT h.id FROM hotels h "
+                        + "LEFT OUTER JOIN roomTypes r ON r.hotelId = h.id "
+                        + "WHERE h.city = :city "
+                        + "AND r.pricePerPerson BETWEEN :minPrice AND :maxPrice AND r.maxPeople <= :numPeople",
+                params,
+                new TotalResultsMapper()
+        );
+
+
+        PaginatedHotels paginatedHotels = new PaginatedHotels();
+
+        if (hotels != null && hotels.size() > 0) {
+            for (Hotel hotel : hotels) {
+                hotel.setPhotos(getPhotos(hotel.getId()));
             }
+
+            int startIndex = (page - 1) * pageSize;
+            int endIndex = Math.min(startIndex + pageSize, hotels.size());
+
+            paginatedHotels.setHotels(hotels.subList(startIndex, endIndex));
+            paginatedHotels.setTotalResults(totalResults.size());
         }
 
-        return ResponseEntity.ok(hotels);
+        return ResponseEntity.ok(paginatedHotels);
     }
 
     @GetMapping(path = "/cities")
@@ -80,18 +98,12 @@ public class HotelService {
         return ResponseEntity.ok(price);
     }
 
-    private List<RoomType> getRoomTypes(int hotelId , int minPrice, int maxPrice, int numPeople) {
-        SqlParameterSource namedParameters = new MapSqlParameterSource()
-                .addValue("hotelId", hotelId)
-                .addValue("minPrice", minPrice)
-                .addValue("maxPrice", maxPrice)
-                .addValue("numPeople", numPeople);
-
+    private List<String> getPhotos(int hotelId) {
+        SqlParameterSource namedParameters = new MapSqlParameterSource().addValue("hotelId", hotelId);
         return namedParameterJdbcTemplate.query(
-                "SELECT typeName, pricePerPerson, maxPeople, numRoomsAvailable FROM roomtypes WHERE hotelId = :hotelId "
-                    + "AND pricePerPerson BETWEEN :minPrice AND :maxPrice AND maxPeople <= :numPeople",
+                "SELECT url FROM photos WHERE hotelId = :hotelId",
                 namedParameters,
-                new RoomTypesMapper()
+                new PhotosMapper()
         );
     }
 }
