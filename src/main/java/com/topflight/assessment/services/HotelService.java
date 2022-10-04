@@ -3,6 +3,7 @@ package com.topflight.assessment.services;
 import com.topflight.assessment.mapper.*;
 import com.topflight.assessment.model.Hotel;
 import com.topflight.assessment.model.PaginatedHotels;
+import com.topflight.assessment.model.RoomType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,16 +39,18 @@ public class HotelService {
                 .addValue("city", city)
                 .addValue("minPrice", minPrice)
                 .addValue("maxPrice", maxPrice)
-                .addValue("numPeople", numPeople);
+                .addValue("numPeople", numPeople)
+                .addValue("offset", (page - 1) * pageSize)
+                .addValue("limit", pageSize);
 
         List<Hotel> hotels = namedParameterJdbcTemplate.query(
-                "SELECT h.*, r.typeName, r.pricePerPerson, r.maxPeople, r.numRoomsAvailable "
-                        + "FROM hotels h LEFT OUTER JOIN roomTypes r ON r.hotelId = h.id "
+                "SELECT DISTINCT h.* FROM hotels h "
+                        + "LEFT OUTER JOIN roomTypes r ON r.hotelId = h.id "
                         + "WHERE h.city = :city "
                         + "AND r.pricePerPerson BETWEEN :minPrice AND :maxPrice AND r.maxPeople <= :numPeople "
-                        + "ORDER BY h.name",
+                        + "ORDER BY h.name LIMIT :limit OFFSET :offset",
                 params,
-                new HotelExtractor()
+                new HotelsMapper()
         );
 
         List<String> totalResults = namedParameterJdbcTemplate.query(
@@ -59,20 +62,16 @@ public class HotelService {
                 new TotalResultsMapper()
         );
 
-
-        PaginatedHotels paginatedHotels = new PaginatedHotels();
-
-        if (hotels != null && hotels.size() > 0) {
+        if (hotels.size() > 0) {
             for (Hotel hotel : hotels) {
                 hotel.setPhotos(getPhotos(hotel.getId()));
+                hotel.setRoomTypes(getRoomTypes(hotel.getId()));
             }
-
-            int startIndex = (page - 1) * pageSize;
-            int endIndex = Math.min(startIndex + pageSize, hotels.size());
-
-            paginatedHotels.setHotels(hotels.subList(startIndex, endIndex));
-            paginatedHotels.setTotalResults(totalResults.size());
         }
+
+        PaginatedHotels paginatedHotels = new PaginatedHotels();
+        paginatedHotels.setHotels(hotels);
+        paginatedHotels.setTotalResults(totalResults.size());
 
         return ResponseEntity.ok(paginatedHotels);
     }
@@ -104,6 +103,17 @@ public class HotelService {
                 "SELECT url FROM photos WHERE hotelId = :hotelId",
                 namedParameters,
                 new PhotosMapper()
+        );
+    }
+
+
+    private List<RoomType> getRoomTypes(int hotelId) {
+        SqlParameterSource params = new MapSqlParameterSource().addValue("hotelId", hotelId);
+
+        return namedParameterJdbcTemplate.query(
+                "SELECT typeName, pricePerPerson, maxPeople, numRoomsAvailable FROM roomTypes WHERE hotelId = :hotelId",
+                params,
+                new RoomTypesMapper()
         );
     }
 }

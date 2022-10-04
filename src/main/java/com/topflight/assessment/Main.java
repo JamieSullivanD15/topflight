@@ -40,7 +40,6 @@ public class Main {
         pooledDataSource.setMinPoolSize(3);
         pooledDataSource.setInitialPoolSize(3);
 
-
         return pooledDataSource;
     }
 
