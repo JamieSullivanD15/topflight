@@ -87,14 +87,6 @@
             <artifactId>spring-jdbc</artifactId>
             <version>5.3.21</version>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-reload4j -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-reload4j</artifactId>
-            <version>1.7.36</version>
-            <scope>test</scope>
-        </dependency>
         <!-- MyBatis -->
         <dependency>
             <groupId>org.mybatis</groupId>
@@ -113,6 +105,5 @@
             <artifactId>c3p0</artifactId>
             <version>0.9.5.5</version>
         </dependency>
-
     </dependencies>
 </project>

@@ -89,7 +89,7 @@ public class HotelService {
     @GetMapping(path = "/maxPrice")
     public ResponseEntity<Long> getMaxPrice() {
         Long price = namedParameterJdbcTemplate.queryForObject(
-                "SELECT MAX(pricePerPerson) FROM roomtypes",
+                "SELECT MAX(pricePerPerson) FROM roomTypes",
                 new MapSqlParameterSource(),
                 Long.class
         );
@@ -117,5 +117,3 @@ public class HotelService {
         );
     }
 }
-
-
